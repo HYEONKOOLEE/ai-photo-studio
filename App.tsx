@@ -1,4 +1,3 @@
-
 import React, { useState, useCallback, useEffect } from 'react';
 import { ControlPanel } from './components/ControlPanel';
 import { ImageUploader } from './components/ImageUploader';
@@ -79,7 +78,7 @@ export default function App() {
         .then(setFinalImageUrl)
         .catch(err => {
           console.error("Failed to post-process for preview:", err);
-          setError("Failed to apply post-processing for preview.");
+          setError("미리보기에 후처리 효과를 적용하지 못했습니다.");
           setFinalImageUrl(activeProcessedImage.url); // Fallback to unprocessed image
         }).finally(() => setIsLoading(false));
     } else {
@@ -105,7 +104,7 @@ export default function App() {
       ]);
     } catch (e: any) {
       console.error(e);
-      setError(`Failed to generate image: ${e.message}. Please check your API key and try again.`);
+      setError(`이미지 생성 실패: ${e.message}. API 키를 확인하고 다시 시도해주세요.`);
     } finally {
       setIsLoading(false);
     }
@@ -130,7 +129,7 @@ export default function App() {
         });
       } catch (e: any) {
         console.error(`Failed to process ${image.file.name}:`, e);
-        setError(`Failed to process ${image.file.name}: ${e.message}`);
+        setError(`${image.file.name} 처리 실패: ${e.message}`);
       }
       setProgress({ current: i + 1, total: productImages.length });
     }
@@ -175,7 +174,7 @@ export default function App() {
       ]);
     } catch (e: any) {
       console.error(e);
-      setError(`Failed to edit image: ${e.message}. Please check your API key and try again.`);
+      setError(`이미지 수정 실패: ${e.message}. API 키를 확인하고 다시 시도해주세요.`);
     } finally {
       setIsLoading(false);
     }

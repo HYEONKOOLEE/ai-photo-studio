@@ -1,4 +1,3 @@
-
 import { GoogleGenAI, Modality } from "@google/genai";
 import type { Settings } from '../types';
 
@@ -92,7 +91,7 @@ export const generateProductImage = async (
     modelImageFile: File | null
 ): Promise<string> => {
   if (!apiKey) {
-    throw new Error("API key is not provided.");
+    throw new Error("API 키가 제공되지 않았습니다.");
   }
   const ai = new GoogleGenAI({ apiKey });
 
@@ -131,7 +130,7 @@ export const generateProductImage = async (
   const responseParts = response.candidates?.[0]?.content?.parts;
 
   if (!responseParts) {
-      throw new Error("Invalid response from the model. No content parts found.");
+      throw new Error("모델로부터 잘못된 응답을 받았습니다. 콘텐츠를 찾을 수 없습니다.");
   }
 
   const imageResultPart = responseParts.find(part => part.inlineData);
@@ -142,10 +141,10 @@ export const generateProductImage = async (
   
   const textResultPart = responseParts.find(part => part.text);
   if (textResultPart && textResultPart.text) {
-      throw new Error(`Model returned text instead of an image: ${textResultPart.text}`);
+      throw new Error(`모델이 이미지 대신 텍스트를 반환했습니다: ${textResultPart.text}`);
   }
 
-  throw new Error("Could not generate image or find image data in response.");
+  throw new Error("이미지를 생성하거나 응답에서 이미지 데이터를 찾을 수 없습니다.");
 };
 
 export const editProductImage = async (
@@ -154,7 +153,7 @@ export const editProductImage = async (
     editPrompt: string
 ): Promise<string> => {
     if (!apiKey) {
-        throw new Error("API key is not provided.");
+        throw new Error("API 키가 제공되지 않았습니다.");
     }
     const ai = new GoogleGenAI({ apiKey });
 
@@ -183,7 +182,7 @@ export const editProductImage = async (
     const responseParts = response.candidates?.[0]?.content?.parts;
 
     if (!responseParts) {
-        throw new Error("Invalid response from the model. No content parts found.");
+        throw new Error("모델로부터 잘못된 응답을 받았습니다. 콘텐츠를 찾을 수 없습니다.");
     }
 
     const imageResultPart = responseParts.find(part => part.inlineData);
@@ -194,8 +193,8 @@ export const editProductImage = async (
 
     const textResultPart = responseParts.find(part => part.text);
     if (textResultPart && textResultPart.text) {
-        throw new Error(`Model returned text instead of an image: ${textResultPart.text}`);
+        throw new Error(`모델이 이미지 대신 텍스트를 반환했습니다: ${textResultPart.text}`);
     }
 
-    throw new Error("Could not generate edited image or find image data in response.");
+    throw new Error("수정된 이미지를 생성하거나 응답에서 이미지 데이터를 찾을 수 없습니다.");
 };
