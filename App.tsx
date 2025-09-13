@@ -16,6 +16,10 @@ const getApiErrorMessage = (error: any): string => {
     return defaultMessage;
   }
   
+  if (error.message.includes("API 키가 제공되지 않았습니다")) {
+    return error.message;
+  }
+
   try {
     // Attempt to parse the error message which might be a JSON string
     const errorJson = JSON.parse(error.message);
@@ -26,7 +30,7 @@ const getApiErrorMessage = (error: any): string => {
         return "API 무료 사용량 한도를 초과했습니다. 잠시 후 다시 시도해주세요. 문제가 계속되면 Google AI Studio에서 결제 계정을 연결하여 제한을 늘릴 수 있습니다.";
       }
       if (apiError.code === 400 && apiError.message.includes("API key not valid")) {
-         return "API 키가 유효하지 않습니다. Google AI Studio에서 키를 확인하고 다시 입력해주세요.";
+         return "API 키가 유효하지 않습니다. 올바른 키를 입력했는지 확인해주세요.";
       }
       return `API 오류: ${apiError.message} (코드: ${apiError.code})`;
     }
@@ -42,7 +46,7 @@ const getApiErrorMessage = (error: any): string => {
 
 
 export default function App() {
-  const [apiKey, setApiKey] = useState<string>(() => localStorage.getItem('gemini-api-key') || '');
+  const [apiKey, setApiKey] = useState<string | null>(() => localStorage.getItem('gemini-api-key'));
   const [productImages, setProductImages] = useState<ProductImage[]>([]);
   const [processedImages, setProcessedImages] = useState<ProcessedImage[]>([]);
   const [settings, setSettings] = useState<Settings>({
@@ -62,13 +66,10 @@ export default function App() {
   const [activeImageId, setActiveImageId] = useState<string | null>(null);
   const [finalImageUrl, setFinalImageUrl] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (apiKey) {
-      localStorage.setItem('gemini-api-key', apiKey);
-    } else {
-      localStorage.removeItem('gemini-api-key');
-    }
-  }, [apiKey]);
+  const handleApiKeySubmit = (key: string) => {
+    localStorage.setItem('gemini-api-key', key);
+    setApiKey(key);
+  };
 
   const handleFilesAdded = (files: File[]) => {
     const newImages: ProductImage[] = files.map(file => ({
@@ -120,11 +121,14 @@ export default function App() {
 
 
   const handleGenerate = useCallback(async () => {
-    if (!activeImage || !apiKey) return;
+    if (!activeImage || !apiKey) {
+      if (!apiKey) setError("API 키가 설정되지 않았습니다. 페이지를 새로고침하고 다시 입력해주세요.");
+      return;
+    }
     setIsLoading(true);
     setError(null);
     try {
-      const resultBase64 = await generateProductImage(apiKey, activeImage.file, settings, modelImage?.file || null);
+      const resultBase64 = await generateProductImage(activeImage.file, settings, modelImage?.file || null, apiKey);
       const newProcessedImage: ProcessedImage = {
         id: `processed-${activeImage.id}-${Date.now()}`,
         sourceId: activeImage.id,
@@ -143,7 +147,10 @@ export default function App() {
   }, [activeImage, settings, modelImage, apiKey]);
 
   const handleBatchProcess = useCallback(async () => {
-    if (productImages.length === 0 || !apiKey) return;
+    if (productImages.length === 0 || !apiKey) {
+      if (!apiKey) setError("API 키가 설정되지 않았습니다. 페이지를 새로고침하고 다시 입력해주세요.");
+      return;
+    }
     setIsLoading(true);
     setError(null);
     setProgress({ current: 0, total: productImages.length });
@@ -154,7 +161,7 @@ export default function App() {
     for (let i = 0; i < productImages.length; i++) {
       const image = productImages[i];
       try {
-        const resultBase64 = await generateProductImage(apiKey, image.file, settings, modelImage?.file || null);
+        const resultBase64 = await generateProductImage(image.file, settings, modelImage?.file || null, apiKey);
         newProcessed.push({
           id: `processed-${image.id}-${Date.now()}`,
           sourceId: image.id,
@@ -163,8 +170,8 @@ export default function App() {
       } catch (e: any) {
         console.error(`Failed to process ${image.file.name}:`, e);
         batchError = getApiErrorMessage(e);
-        // Stop batch processing on rate limit error
-        if (batchError.includes("API 무료 사용량 한도")) {
+        // Stop batch processing on critical errors
+        if (batchError.includes("API")) {
           setError(`${image.file.name} 처리 중 중단됨: ${batchError}`);
           break; 
         }
@@ -199,12 +206,15 @@ export default function App() {
 
   const handleImageEdit = useCallback(async (sourceId: string, prompt: string) => {
     const imageToEdit = processedImages.find(img => img.sourceId === sourceId);
-    if (!imageToEdit || !prompt || !apiKey) return;
+    if (!imageToEdit || !prompt || !apiKey) {
+      if (!apiKey) setError("API 키가 설정되지 않았습니다. 페이지를 새로고침하고 다시 입력해주세요.");
+      return;
+    }
 
     setIsLoading(true);
     setError(null);
     try {
-      const resultBase64 = await editProductImage(apiKey, imageToEdit.url, prompt);
+      const resultBase64 = await editProductImage(imageToEdit.url, prompt, apiKey);
       const newEditedImage: ProcessedImage = {
         id: `edited-${imageToEdit.id}-${Date.now()}`,
         sourceId: imageToEdit.sourceId,
@@ -223,7 +233,7 @@ export default function App() {
   }, [processedImages, apiKey]);
 
   if (!apiKey) {
-    return <ApiKeyModal onApiKeySubmit={setApiKey} />;
+    return <ApiKeyModal onApiKeySubmit={handleApiKeySubmit} />;
   }
 
   return (

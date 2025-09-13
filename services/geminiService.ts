@@ -85,13 +85,13 @@ Before outputting the final image, verify that the person has exactly two arms. 
 
 
 export const generateProductImage = async (
-    apiKey: string,
     productImageFile: File, 
     settings: Settings,
-    modelImageFile: File | null
+    modelImageFile: File | null,
+    apiKey: string
 ): Promise<string> => {
   if (!apiKey) {
-    throw new Error("API 키가 제공되지 않았습니다.");
+    throw new Error("API 키가 제공되지 않았습니다. 앱을 다시 로드하고 API 키를 입력해주세요.");
   }
   const ai = new GoogleGenAI({ apiKey });
 
@@ -148,12 +148,12 @@ export const generateProductImage = async (
 };
 
 export const editProductImage = async (
-    apiKey: string,
     base64ImageUrl: string,
-    editPrompt: string
+    editPrompt: string,
+    apiKey: string,
 ): Promise<string> => {
     if (!apiKey) {
-        throw new Error("API 키가 제공되지 않았습니다.");
+        throw new Error("API 키가 제공되지 않았습니다. 앱을 다시 로드하고 API 키를 입력해주세요.");
     }
     const ai = new GoogleGenAI({ apiKey });
 
