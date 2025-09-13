@@ -9,6 +9,38 @@ import { generateProductImage, editProductImage } from './services/geminiService
 import { BACKGROUND_OPTIONS, LIGHTING_OPTIONS, ANGLE_OPTIONS, SNS_OPTIONS } from './constants';
 import { applyPostProcessing } from './utils/imageUtils';
 
+const getApiErrorMessage = (error: any): string => {
+  const defaultMessage = `이미지 처리 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.`;
+
+  if (!error.message) {
+    return defaultMessage;
+  }
+  
+  try {
+    // Attempt to parse the error message which might be a JSON string
+    const errorJson = JSON.parse(error.message);
+    const apiError = errorJson.error;
+
+    if (apiError) {
+      if (apiError.code === 429 || apiError.status === "RESOURCE_EXHAUSTED") {
+        return "API 무료 사용량 한도를 초과했습니다. 잠시 후 다시 시도해주세요. 문제가 계속되면 Google AI Studio에서 결제 계정을 연결하여 제한을 늘릴 수 있습니다.";
+      }
+      if (apiError.code === 400 && apiError.message.includes("API key not valid")) {
+         return "API 키가 유효하지 않습니다. Google AI Studio에서 키를 확인하고 다시 입력해주세요.";
+      }
+      return `API 오류: ${apiError.message} (코드: ${apiError.code})`;
+    }
+  } catch (e) {
+    // Not a JSON message, return the original message if it's a simple string
+     if (typeof error.message === 'string' && !error.message.startsWith('{')) {
+        return `오류: ${error.message}`;
+    }
+  }
+  
+  return defaultMessage;
+};
+
+
 export default function App() {
   const [apiKey, setApiKey] = useState<string>(() => localStorage.getItem('gemini-api-key') || '');
   const [productImages, setProductImages] = useState<ProductImage[]>([]);
@@ -104,7 +136,7 @@ export default function App() {
       ]);
     } catch (e: any) {
       console.error(e);
-      setError(`이미지 생성 실패: ${e.message}. API 키를 확인하고 다시 시도해주세요.`);
+      setError(getApiErrorMessage(e));
     } finally {
       setIsLoading(false);
     }
@@ -117,6 +149,7 @@ export default function App() {
     setProgress({ current: 0, total: productImages.length });
     
     const newProcessed: ProcessedImage[] = [];
+    let batchError: string | null = null;
 
     for (let i = 0; i < productImages.length; i++) {
       const image = productImages[i];
@@ -129,9 +162,18 @@ export default function App() {
         });
       } catch (e: any) {
         console.error(`Failed to process ${image.file.name}:`, e);
-        setError(`${image.file.name} 처리 실패: ${e.message}`);
+        batchError = getApiErrorMessage(e);
+        // Stop batch processing on rate limit error
+        if (batchError.includes("API 무료 사용량 한도")) {
+          setError(`${image.file.name} 처리 중 중단됨: ${batchError}`);
+          break; 
+        }
       }
       setProgress({ current: i + 1, total: productImages.length });
+    }
+
+    if(batchError && !error) {
+        setError("일부 이미지 처리 중 오류가 발생했습니다.");
     }
 
     setProcessedImages(prev => {
@@ -141,7 +183,7 @@ export default function App() {
     });
 
     setIsLoading(false);
-  }, [productImages, settings, modelImage, apiKey]);
+  }, [productImages, settings, modelImage, apiKey, error]);
   
   const handleDownload = useCallback(async () => {
     if (!finalImageUrl) return;
@@ -174,7 +216,7 @@ export default function App() {
       ]);
     } catch (e: any) {
       console.error(e);
-      setError(`이미지 수정 실패: ${e.message}. API 키를 확인하고 다시 시도해주세요.`);
+      setError(getApiErrorMessage(e));
     } finally {
       setIsLoading(false);
     }
